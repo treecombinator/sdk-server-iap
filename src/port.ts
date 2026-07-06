@@ -24,10 +24,18 @@ export interface Purchase {
 
 export interface IapNotification {
   platform: IapPlatform;
-  /** e.g. "SUBSCRIBED", "DID_RENEW", "EXPIRED", "REFUND". */
+  /**
+   * Store event name: Apple V2 names on ios (e.g. "SUBSCRIBED", "DID_RENEW", "EXPIRED"),
+   * Google RTDN names on android (e.g. "SUBSCRIPTION_PURCHASED", "SUBSCRIPTION_RENEWED").
+   */
   type: string;
   productId?: string;
   transactionId?: string;
+  /**
+   * True only when the adapter verified the notification's authenticity (signature check or
+   * store lookup). When false, treat the event as UNTRUSTED input — anyone can POST a webhook.
+   */
+  verified: boolean;
   raw: unknown;
 }
 

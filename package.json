@@ -15,6 +15,7 @@
     }
   },
   "scripts": { "build": "tsup", "prepare": "tsup", "typecheck": "tsc --noEmit", "clean": "rm -rf dist" },
+  "dependencies": { "@treecombinator/sdk-common": "github:treecombinator/sdk-common" },
   "devDependencies": { "tsup": "^8.5.1", "typescript": "^5.5.0" },
   "repository": { "type": "git", "url": "git+https://github.com/treecombinator/sdk-server-iap.git" },
   "publishConfig": { "access": "public" }

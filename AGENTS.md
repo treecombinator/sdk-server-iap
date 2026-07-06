@@ -9,14 +9,15 @@ import { createIap } from "@treecombinator/sdk-server-iap";
 
 const iap = createIap();
 const note = await iap.parseNotification("ios", rawBody);     // Apple S2S V2 / "android" → Google RTDN
-const purchase = await iap.validate({ platform: "ios", token }); // needs store credentials
+// → { platform, type, productId?, transactionId?, verified: false, raw }
 ```
 
 `createIap(config?)` → `parseNotification(platform, body)`, `validate(input)`.
-`platform` is `"ios" | "android"`. Config: `{ apple?, google? }` (store credentials for `validate()`).
+`platform` is `"ios" | "android"`. Config: `{ apple?, google? }` (store credentials).
+`type` is the store event name (Apple V2 names on ios; Google RTDN names on android).
 Wire types: `Iap`, `Purchase`, `IapNotification`, `IapPlatform`, `ValidateInput`, `IapConfig`.
 
 ## Notes
 
-- `parseNotification` works without credentials; `validate()` requires them and throws a plain `Error` until `apple`/`google` are configured.
-- `parseNotification` decodes the envelope but does not verify signatures — verify Apple's JWS x5c chain or the Google Play Developer API before trusting an event.
+- Notifications come back `verified: false` — nothing is signature-checked. Never grant entitlements from a webhook alone; confirm with Apple (JWS x5c chain) or the Google Play Developer API first.
+- `validate()` is a STUB: it always throws a `TcError` (`iap_credentials_unconfigured` without credentials, `iap_validate_unimplemented` with them). Configuring credentials does not enable it.
