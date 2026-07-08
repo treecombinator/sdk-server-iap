@@ -8,35 +8,63 @@
 
 ---
 
-The **in-app-purchase** domain of the Tree Combinator SDK — normalizes Apple App Store and Google Play into one purchase shape. It parses store-to-server notifications (Apple App Store Server Notifications V2, Google Play RTDN) out of the box, with zero runtime dependencies.
+The **IAP** domain of the Tree Combinator SDK on the server — typed clients for the two store server APIs plus webhook parsers. It powers a BFF's purchase verification (`/billing/verify`-style routes) and store webhooks. What it deliberately does NOT do: product→entitlement mapping, persistence, or entitlement derivation — those are product decisions that live in the app's BFF.
 
 ## Install
 
 ```bash
-npm install github:treecombinator/sdk-server-iap
+givo add @treecombinator/sdk-server-iap
 ```
 
 ## Use
 
 ```ts
-import { createIap } from "@treecombinator/sdk-server-iap";
+import {
+  createAppleStore,
+  createGoogleStore,
+  parseAppleNotification,
+  parseGoogleRtdn,
+} from "@treecombinator/sdk-server-iap";
 
-const iap = createIap();
+// Apple App Store Server API — auth is a JWT ES256 signed with an IN-APP PURCHASE key.
+const apple = createAppleStore({
+  keyP8: env.APPLE_IAP_KEY_P8,
+  keyId: env.APPLE_IAP_KEY_ID,
+  issuerId: env.APPLE_IAP_ISSUER_ID,
+  bundleId: "com.example",
+});
+const tx = await apple.getTransaction(transactionId); // production first; sandbox on 4040010
+const statuses = await apple.getSubscriptionStatuses(tx.originalTransactionId!);
+await apple.requestTestNotification(); // asks Apple to hit your webhook
 
-// Webhook handler: classify a store server-notification (no credentials needed).
-const note = await iap.parseNotification("ios", rawBody);     // Apple S2S V2
-// const note = await iap.parseNotification("android", rawBody); // Google RTDN
-// → { platform, type, productId?, transactionId?, verified: false, raw }
+// Google Play Developer API — service-account OAuth (invited in Play Console with
+// "view financial data" + "manage orders").
+const google = createGoogleStore({
+  email: env.GOOGLE_SA_EMAIL,
+  privateKey: env.GOOGLE_SA_PRIVATE_KEY,
+  packageName: "com.example",
+});
+const sub = await google.getSubscription(purchaseToken); // subscriptionsv2
+const product = await google.getProduct(productId, purchaseToken);
+await google.acknowledgeSubscription(subscriptionId, purchaseToken); // mandatory ≤3 days; idempotent
+
+// Webhooks: DECODE ONLY (verified: false) — dedupe, then confirm via the clients above.
+const appleNotification = parseAppleNotification(requestBody);
+const rtdn = parseGoogleRtdn(requestBody);
 ```
 
-`createIap(config?)` returns the IAP API:
+## Trust model
 
-- `parseNotification(platform, body)` — parse and classify a raw store webhook body into an `IapNotification` (`{ platform, type, productId?, transactionId?, verified, raw }`). `type` is the store event name — Apple V2 names on ios (e.g. `"SUBSCRIBED"`, `"DID_RENEW"`, `"EXPIRED"`), Google RTDN names on android (e.g. `"SUBSCRIPTION_PURCHASED"`, `"SUBSCRIPTION_RENEWED"`). Works without credentials.
-- `validate(input)` — STUB, not implemented: it throws `iap_credentials_unconfigured` without credentials and `iap_validate_unimplemented` with them. The real store calls (Apple App Store Server API / Google Play Developer API) are not built yet.
+Store webhooks are unauthenticated HTTP from your point of view: anyone can POST one. The parsers therefore never mark anything `verified` — they exist to tell you WHAT to confirm. The rule for a correct BFF:
 
-`platform` is `"ios" | "android"`. Config: `{ apple?, google? }` — store credentials for `validate()` (Apple App Store Server API key to sign ES256 requests; Google Play Developer API service-account access). The package also exports the wire types `Iap`, `Purchase`, `IapNotification`, `IapPlatform`, `ValidateInput` and `IapConfig`.
+1. Parse → dedupe (`notificationUUID` / Pub/Sub `messageId`).
+2. Confirm the CURRENT state with `getSubscriptionStatuses` / `getSubscription` over TLS.
+3. Only then write to your database.
 
 ## Notes
 
-- **Notifications come back `verified: false`**: `parseNotification` decodes the envelope but verifies nothing — anyone who knows the URL can POST a forged webhook. Do NOT grant purchases/entitlements from a notification alone: confirm Apple's JWS x5c certificate chain, or look the purchase up in the Google Play Developer API, first.
-- `validate()` is a stub: it always throws (`iap_credentials_unconfigured` / `iap_validate_unimplemented`) — configuring credentials does not enable it. Not production-ready for granting entitlements.
+- Key types matter on Apple: the In-App Purchase key is its own kind — a Sign in with Apple/APNs key or an App Store Connect API team key gets a 401.
+- `createAppleStore` retries the sandbox host when production answers `4040010` (transaction not found), Apple's recommended routing for review/sandbox purchases.
+- OAuth/JWTs are cached near their expiry (Apple ~20 min, Google ~1 h) per store instance.
+- Test seams: `productionUrl`/`sandboxUrl` (Apple), `apiUrl`/`oauthUrl` (Google) and `fetch` are injectable.
+- Errors are `TcError` (`@treecombinator/sdk-common`) carrying the HTTP `status` and a specific code (`iap_apple_auth_failed`, `iap_google_request_failed`, `iap_notification_invalid`, …).

@@ -1,22 +1,49 @@
 {
   "name": "@treecombinator/sdk-server-iap",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "license": "Apache-2.0",
-  "description": "Tree Combinator SDK — in-app purchase domain (Apple/Google).",
+  "description": "Tree Combinator SDK — the IAP domain on the server: Apple App Store Server API and Google Play Developer API clients, plus store webhook parsers (ASSN V2 / RTDN).",
   "type": "module",
-  "files": ["dist", "AGENTS.md", "README.md", "LICENSE"],
+  "files": [
+    "dist",
+    "AGENTS.md",
+    "README.md",
+    "LICENSE"
+  ],
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
-      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     }
   },
-  "scripts": { "build": "tsup", "prepare": "tsup", "typecheck": "tsc --noEmit", "clean": "rm -rf dist" },
-  "dependencies": { "@treecombinator/sdk-common": "github:treecombinator/sdk-common" },
-  "devDependencies": { "tsup": "^8.5.1", "typescript": "^5.5.0" },
-  "repository": { "type": "git", "url": "git+https://github.com/treecombinator/sdk-server-iap.git" },
-  "publishConfig": { "access": "public" }
+  "scripts": {
+    "build": "tsup",
+    "prepare": "tsup",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@treecombinator/sdk-common": "^0.0.1"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.1",
+    "typescript": "^5.5.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/treecombinator/sdk-server-iap.git"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.givo.dev/npm/"
+  }
 }

@@ -1,13 +1,14 @@
-import type { Iap } from "./port";
-import { createStoresIap, type IapConfig } from "./adapters/stores";
-
-export type { Iap, Purchase, IapNotification, IapPlatform, ValidateInput } from "./port";
-export type { IapConfig } from "./adapters/stores";
-
-/**
- * IAP domain factory. parseNotification (webhook) works now; validate() needs store
- * credentials (Apple App Store Server API / Google Play Developer API).
- */
-export function createIap(config?: IapConfig): Iap {
-  return createStoresIap(config);
-}
+export { createAppleStore, parseAppleNotification } from "./adapters/apple";
+export type { AppleStoreConfig } from "./adapters/apple";
+export { createGoogleStore, parseGoogleRtdn } from "./adapters/google";
+export type { GoogleStoreConfig } from "./adapters/google";
+export type {
+  AppleNotification,
+  AppleStore,
+  AppleSubscriptionStatus,
+  AppleTransaction,
+  GoogleProductPurchase,
+  GoogleRtdnNotification,
+  GoogleStore,
+  GoogleSubscriptionPurchase,
+} from "./port";

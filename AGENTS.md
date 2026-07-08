@@ -1,23 +1,31 @@
 # AGENTS.md — @treecombinator/sdk-server-iap
 
-In-app purchase domain of the Tree Combinator SDK (Apple App Store / Google Play). Distinct from external payment. Normalizes both stores into one purchase shape and parses their server-to-server notifications. Zero runtime dependencies.
+> Guide for AI agents. IAP domain of the Tree Combinator SDK on the server: clients for
+> the Apple App Store Server API and the Google Play Developer API, plus webhook parsers
+> (Apple Server Notifications V2 / Google RTDN). Product mapping, storage and
+> entitlement derivation are the APP's job — this package only talks to the stores.
 
 ## Use
 
 ```ts
-import { createIap } from "@treecombinator/sdk-server-iap";
+import { createAppleStore, createGoogleStore, parseAppleNotification, parseGoogleRtdn } from "@treecombinator/sdk-server-iap";
 
-const iap = createIap();
-const note = await iap.parseNotification("ios", rawBody);     // Apple S2S V2 / "android" → Google RTDN
-// → { platform, type, productId?, transactionId?, verified: false, raw }
+const apple = createAppleStore({ keyP8, keyId, issuerId, bundleId }); // IN-APP PURCHASE key (.p8)
+const tx = await apple.getTransaction(transactionId);       // production first, sandbox on 4040010
+const statuses = await apple.getSubscriptionStatuses(tx.originalTransactionId);
+
+const google = createGoogleStore({ email, privateKey, packageName }); // service-account
+const sub = await google.getSubscription(purchaseToken);    // subscriptionsv2
+await google.acknowledgeSubscription(subscriptionId, purchaseToken); // MANDATORY ≤3 days; idempotent
+
+const an = parseAppleNotification(body);  // { type, subtype?, notificationUUID, transaction?, verified: false }
+const gn = parseGoogleRtdn(body);         // { messageId, type, purchaseToken?, isTest, verified: false }
 ```
-
-`createIap(config?)` → `parseNotification(platform, body)`, `validate(input)`.
-`platform` is `"ios" | "android"`. Config: `{ apple?, google? }` (store credentials).
-`type` is the store event name (Apple V2 names on ios; Google RTDN names on android).
-Wire types: `Iap`, `Purchase`, `IapNotification`, `IapPlatform`, `ValidateInput`, `IapConfig`.
 
 ## Notes
 
-- Notifications come back `verified: false` — nothing is signature-checked. Never grant entitlements from a webhook alone; confirm with Apple (JWS x5c chain) or the Google Play Developer API first.
-- `validate()` is a STUB: it always throws a `TcError` (`iap_credentials_unconfigured` without credentials, `iap_validate_unimplemented` with them). Configuring credentials does not enable it.
+- TRUST MODEL: parsers DECODE only (`verified: false`, always) — anyone can POST a webhook. Dedupe by `notificationUUID`/`messageId`, then CONFIRM real state via `getSubscriptionStatuses`/`getSubscription` before writing anything.
+- Apple auth = JWT ES256 with an **In-App Purchase** key (not Sign in with Apple/APNs, not a Connect API team key — wrong key type 401s). Google auth = service-account OAuth (RS256), token cached; the SA needs Play Console permissions "view financial data" + "manage orders".
+- `apiUrl`/`oauthUrl`/`productionUrl`/`sandboxUrl`/`fetch` are injectable for tests.
+- Errors are `TcError` with `.status`: `iap_apple_auth_failed`, `iap_apple_request_failed`, `iap_apple_response_invalid`, `iap_google_auth_failed`, `iap_google_request_failed`, `iap_notification_invalid`.
+- `acknowledge*` swallows the benign already-acknowledged 400 — safe to call on every verify.
