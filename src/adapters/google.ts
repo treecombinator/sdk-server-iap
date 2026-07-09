@@ -85,8 +85,7 @@ export function createGoogleStore(config: GoogleStoreConfig): GoogleStore {
 
   async function request(method: string, path: string): Promise<Record<string, unknown>> {
     const res = await doFetch(api + path, { method, headers: { Authorization: `Bearer ${await token()}` } });
-    const text = await res.text();
-    const body = (text ? JSON.parse(text) : {}) as Record<string, unknown>;
+    const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
     if (!res.ok) {
       throw new TcError("iap_google_request_failed", `google ${res.status}`, { path, body }, res.status);
     }
