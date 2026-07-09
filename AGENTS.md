@@ -11,7 +11,7 @@
 import { createAppleStore, createGoogleStore, parseAppleNotification, parseGoogleRtdn } from "@treecombinator/sdk-server-iap";
 
 const apple = createAppleStore({ keyP8, keyId, issuerId, bundleId }); // IN-APP PURCHASE key (.p8)
-const tx = await apple.getTransaction(transactionId);       // production first, sandbox on 4040010
+const tx = await apple.getTransaction(transactionId);       // production first, sandbox on not-found (4040010/4040005)
 const statuses = await apple.getSubscriptionStatuses(tx.originalTransactionId);
 
 const google = createGoogleStore({ email, privateKey, packageName }); // service-account

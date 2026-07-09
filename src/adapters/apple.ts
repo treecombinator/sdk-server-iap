@@ -7,8 +7,9 @@ import type { AppleNotification, AppleStore, AppleSubscriptionStatus, AppleTrans
  * key (App Store Connect → Users and Access → Integrations → In-App Purchase) — the
  * Sign in with Apple / APNs key does NOT work here, nor does a Connect API team key.
  *
- * Environment routing: production first; a 4040010 (transaction not found) retries
- * against the sandbox host, per Apple's recommended pattern.
+ * Environment routing: production first; a not-found error (4040010
+ * TransactionIdNotFoundError or 4040005 OriginalTransactionIdNotFoundError)
+ * retries against the sandbox host, per Apple's recommended pattern.
  */
 export interface AppleStoreConfig {
   /** The .p8 private key (PEM, In-App Purchase type). */
@@ -25,7 +26,8 @@ export interface AppleStoreConfig {
 
 const PRODUCTION = "https://api.storekit.itunes.apple.com";
 const SANDBOX = "https://api.storekit-sandbox.itunes.apple.com";
-const TRANSACTION_NOT_FOUND = 4040010;
+/** 4040010 TransactionIdNotFoundError, 4040005 OriginalTransactionIdNotFoundError (subscriptions endpoint). */
+const NOT_FOUND_ERROR_CODES = new Set([4040010, 4040005]);
 
 export function createAppleStore(config: AppleStoreConfig): AppleStore {
   const doFetch = config.fetch ?? globalThis.fetch;
@@ -63,12 +65,13 @@ export function createAppleStore(config: AppleStoreConfig): AppleStore {
     return body;
   }
 
-  /** Production first; 4040010 falls through to sandbox (sandbox purchases in review/tests). */
+  /** Production first; a not-found errorCode falls through to sandbox (sandbox purchases in review/tests). */
   async function getWithFallback(path: string): Promise<Record<string, unknown>> {
     try {
       return await get(production, path);
     } catch (err) {
-      if (err instanceof TcError && err.details?.errorCode === TRANSACTION_NOT_FOUND) {
+      const errorCode = err instanceof TcError ? err.details?.errorCode : undefined;
+      if (typeof errorCode === "number" && NOT_FOUND_ERROR_CODES.has(errorCode)) {
         return get(sandbox, path);
       }
       throw err;

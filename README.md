@@ -33,7 +33,7 @@ const apple = createAppleStore({
   issuerId: env.APPLE_IAP_ISSUER_ID,
   bundleId: "com.example",
 });
-const tx = await apple.getTransaction(transactionId); // production first; sandbox on 4040010
+const tx = await apple.getTransaction(transactionId); // production first; sandbox on not-found (4040010/4040005)
 const statuses = await apple.getSubscriptionStatuses(tx.originalTransactionId!);
 await apple.requestTestNotification(); // asks Apple to hit your webhook
 
@@ -64,7 +64,7 @@ Store webhooks are unauthenticated HTTP from your point of view: anyone can POST
 ## Notes
 
 - Key types matter on Apple: the In-App Purchase key is its own kind — a Sign in with Apple/APNs key or an App Store Connect API team key gets a 401.
-- `createAppleStore` retries the sandbox host when production answers `4040010` (transaction not found), Apple's recommended routing for review/sandbox purchases.
+- `createAppleStore` retries the sandbox host when production answers a not-found error (`4040010` transaction id, `4040005` original transaction id), Apple's recommended routing for review/sandbox purchases.
 - OAuth/JWTs are cached near their expiry (Apple ~20 min, Google ~1 h) per store instance.
 - Test seams: `productionUrl`/`sandboxUrl` (Apple), `apiUrl`/`oauthUrl` (Google) and `fetch` are injectable.
 - Errors are `TcError` (`@treecombinator/sdk-common`) carrying the HTTP `status` and a specific code (`iap_apple_auth_failed`, `iap_google_request_failed`, `iap_notification_invalid`, …).
