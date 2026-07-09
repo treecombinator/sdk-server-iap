@@ -1,6 +1,6 @@
 {
   "name": "@treecombinator/sdk-server-iap",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "Apache-2.0",
   "description": "Tree Combinator SDK — the IAP domain on the server: Apple App Store Server API and Google Play Developer API clients, plus store webhook parsers (ASSN V2 / RTDN).",
   "type": "module",
